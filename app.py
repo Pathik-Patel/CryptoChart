@@ -2,8 +2,11 @@ from dash import Dash, html, dcc, Output, Input
 import plotly.express as px
 import pandas as pd
 import plotly.graph_objects as go
-import pickle
 import dash_bootstrap_components as dbc
+import pickle
+import feature4 as v
+import feature1 as q
+
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 control = dbc.Card([
@@ -11,9 +14,7 @@ control = dbc.Card([
         [
             dbc.Label("Crypto-Currency :-"),
             dcc.Dropdown({
-                'BTC-USD.csv': 'BTC',
-                'ETC-USD.csv': 'ETC',
-                'CRO-USD.csv': 'CRO'
+                'BTC-USD.csv': 'BTC'
             },
                 value="BTC-USD.csv", id="demo-dropdown"
             ),
@@ -75,8 +76,40 @@ app.layout = dbc.Container(
     [Input('demo-dropdown', 'value'), Input('demo-date', 'start_date'), Input('demo-date', 'end_date'),Input('model','value')]
 )
 def update_output(value, start_date, end_date,model):
-    pass
+    feature1=list(("bilstm_model_k_100_o_110_feature_1.h5", "conv_bilstm_k_100_o_110_feature_1.h5", "conv_lstm_k_100_o_110_feature_1.h5", "conv_model_k_100_o_110_feature_1.h5", "dense_k_100_o_110_feature_1.h5", "lstm_bilstm_k_100_o_110_feature_1.h5", "lstm_model_k_100_o_110_feature_1.h5", "multi_step_dense_k_100_o_110_feature_1.h5"))
+    feature4=list(("bilstm_model_k_100_o_110_feature_4.h5", "conv_bilstm_k_100_o_110_feature_4.h5", "conv_lstm_k_100_o_110_feature_4.h5", "conv_model_k_100_o_110_feature_4.h5", "dense_k_100_o_110_feature_4.h5", "lstm_bilstm_k_100_o_110_feature_4.h5", "lstm_model_k_100_o_110_feature_4.h5", "multi_step_dense_k_100_o_110_feature_4.h5"))
+    sat = 'You have selected ' + value + ' from ' + start_date + ' to ' + end_date + ' using ' + model + ' Model.'
+    df = pd.read_csv('./csv-files/' + value)
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df[df['Date'] >= start_date]
+    df = df[df['Date'] <= end_date]
+
+    if model=='arima.pickle' or model=='arma.pickle':
+        df1 = df[['Date', 'Close']]
+        df1['Type'] = 'Observed'
+        index = df1.index.values
+        # loading arima pickle file
+        file_open = open("./finalmodel/"+model, "rb")
+        arima_model = pickle.load(file_open)
+        df3 = arima_model.predict(min(index), max(index))
+        dfdate = df1['Date']
+        df2 = pd.DataFrame({'Date': dfdate, 'Close': df3, 'Type': 'Predicted'})
+        # combining two dataFrame
+        result = pd.concat([df1, df2])
+
+    elif model in feature4:
+        result=v.predict4(start_date, end_date, model)
+
+    elif model in feature1:
+        result=q.predict1(start_date, end_date, model)
+
+    fig = px.line(data_frame=result, x='Date', y='Close', color='Type')
+    if model in feature4:
+        fig2 = go.Figure(data=[go.Candlestick(x=result['Date'], open=result['Open'], high=result['High'], low=result['Low'], close=result['Close'])])
+    else:
+        fig2 = go.Figure(data=[go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'])])
+    return sat, fig, fig2
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
